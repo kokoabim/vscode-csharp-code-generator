@@ -5,6 +5,7 @@
 .vscode-test/
 .vscode/
 dist/test/
+lib/
 eslint.config.mjs
 src/**
 tsconfig.json
