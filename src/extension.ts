@@ -3,7 +3,7 @@ import { CSharpCodeGeneratorVSCodeExtension } from "./VSCodeExtension/CSharpCode
 
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Activating CSharp Code Generator extension...');
+    console.log(`Activating ${context.extension.packageJSON["displayName"]} extension...`);
     CSharpCodeGeneratorVSCodeExtension.use(context);
 }
 

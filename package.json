@@ -2,9 +2,9 @@
     "name": "csharp-code-generator",
     "publisher": "spencerjames",
     "version": "0.0.1",
-    "description": "Extension Template",
-    "displayName": "Extension Template",
-    "shortName": "Extension Template",
+    "description": "C# Code Generator",
+    "displayName": "C# Code Generator",
+    "shortName": "C# Code Generator",
     "author": {
         "name": "Spencer James",
         "email": "apps@swsj.me",
@@ -31,19 +31,13 @@
     "main": "./dist/extension.js",
     "contributes": {
         "configuration": {
-            "title": "Extension Template",
-            "properties": {
-                "csharp-code-generator.yourName": {
-                    "type": "string",
-                    "default": "World",
-                    "markdownDescription": "What is _your_ name?"
-                }
-            }
+            "title": "C# Code Generator",
+            "properties": {}
         },
         "commands": [
             {
-                "command": "csharp-code-generator.helloWorld",
-                "title": "Hello World"
+                "command": "csharp-code-generator.generate-interface",
+                "title": "Generator C# Interface For Class..."
             }
         ]
     },

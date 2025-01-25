@@ -1,3 +1,5 @@
 [submodule "lib/vscode-csharp-parsing"]
 	path = lib/vscode-csharp-parsing
 	url = git@github.com:kokoabim/vscode-csharp-parsing.git
+    branch = main
+    ignore = dirty
