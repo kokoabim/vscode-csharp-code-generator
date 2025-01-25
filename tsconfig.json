@@ -1,20 +1,19 @@
 {
     "compilerOptions": {
-        "module": "Node16",
-        "target": "ES2022",
-        "outDir": "dist",
         "lib": [
             "ES2022"
         ],
-        "sourceMap": true,
-        "rootDir": "src",
-        "strict": true,
+        "module": "Node16",
         "noImplicitReturns": true,
+        "outDir": "dist",
+        "rootDir": "src",
+        "sourceMap": true,
+        "strict": true,
+        "target": "ES2022"
     },
     "exclude": [
-        ".vscode-test",
+        ".vscode-test/",
         "dist",
-        "lib",
         "node_modules",
     ]
 }

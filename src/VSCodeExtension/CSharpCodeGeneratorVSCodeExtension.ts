@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { VSCodeCommand } from "./VSCodeCommand";
 import { VSCodeExtension } from "./VSCodeExtension";
-// import { CSharpCodeGeneratorVSCodeExtensionSettings } from "./CSharpCodeGeneratorVSCodeExtensionSettings";
 
 export class CSharpCodeGeneratorVSCodeExtension extends VSCodeExtension {
     constructor(context: vscode.ExtensionContext) {
@@ -17,6 +16,9 @@ export class CSharpCodeGeneratorVSCodeExtension extends VSCodeExtension {
     private generateInterfaceCommand(): VSCodeCommand {
         return new VSCodeCommand("csharp-code-generator.generate-interface", async () => {
             if (!await this.isWorkspaceOpen()) return;
+
+            const textDocument = await this.getTextDocument();
+            if (!textDocument) return;
 
         });
     }
