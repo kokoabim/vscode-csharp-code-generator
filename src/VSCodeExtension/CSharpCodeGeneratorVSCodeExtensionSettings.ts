@@ -1,8 +1,6 @@
 import { VSCodeExtensionSettings } from "./VSCodeExtensionSettings";
 
 export class CSharpCodeGeneratorVSCodeExtensionSettings extends VSCodeExtensionSettings {
-    yourName!: string;
-
     protected configurationSection = "csharp-code-generator";
 
     private static singletonInstance: CSharpCodeGeneratorVSCodeExtensionSettings;
@@ -21,7 +19,5 @@ export class CSharpCodeGeneratorVSCodeExtensionSettings extends VSCodeExtensionS
 
     private static readConfigAndAssignSettings(settings: CSharpCodeGeneratorVSCodeExtensionSettings): void {
         if (!settings.hasConfiguration()) return;
-
-        settings.yourName = settings.get<string>("yourName") || "Somebody";
     }
 }
