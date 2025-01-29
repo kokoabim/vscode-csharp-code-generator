@@ -51,6 +51,12 @@ export abstract class VSCodeExtension {
         return undefined;
     }
 
+    protected async getTextEditor(showWarningMessage = true): Promise<vscode.TextEditor | undefined> {
+        const textEditor = vscode.window.activeTextEditor;
+        if (!textEditor && showWarningMessage) await this.warning("No editor is open.");
+        return textEditor;
+    }
+
     protected async information(message: string): Promise<void> {
         await vscode.window.showInformationMessage(`${this.shortName}: ${message}`);
     }

@@ -24,20 +24,44 @@
         "vscode": "^1.96.0"
     },
     "categories": [
-        "Other"
+        "Snippets"
     ],
-    "keywords": [],
+    "keywords": [
+        "c#",
+        "code",
+        "generator",
+        "csharp",
+        "generation"
+    ],
     "activationEvents": [],
     "main": "./dist/extension.js",
     "contributes": {
         "configuration": {
             "title": "C# Code Generator",
-            "properties": {}
+            "properties": {
+                "csharp-code-generator.interfaceImplementations": {
+                    "type": "object",
+                    "markdownDescription": "On class generation from an interface, if the interface implements an interfaces defined here, its defined implementation is generated in the new class.\n\nPlaceholders: `%className%`, `%classTypeName%`, `%interfaceName%`, `%indent%`",
+                    "default": {
+                        "IDisposable": "#region IDisposable\nprivate bool _disposed;\n\n~%className%() => Dispose(false);\n\npublic void Dispose()\n{\n%indent%Dispose(true);\n%indent%GC.SuppressFinalize(this);\n}\n\nprotected virtual void Dispose(bool disposing)\n{\n%indent%if (_disposed) return;\n\n%indent%if (disposing)\n%indent%{\n%indent%%indent%// TODO: dispose managed managed objects\n%indent%}\n\n%indent%// TODO: dispose unmanaged objects\n\n%indent%_disposed = true;\n}\n#endregion"
+                    }
+                },
+                "csharp-code-generator.formatDocumentOnCodeGeneration": {
+                    "order": 4,
+                    "markdownDescription": "Perform the format document command after code generation.",
+                    "type": "boolean",
+                    "default": true
+                }
+            }
         },
         "commands": [
             {
-                "command": "csharp-code-generator.generate-interface",
-                "title": "Generator C# Interface For Class..."
+                "command": "csharp-code-generator.generate-class-from-interface",
+                "title": "Generate C# Class From Interface..."
+            },
+            {
+                "command": "csharp-code-generator.generate-interface-from-class",
+                "title": "Generate C# Interface From Class..."
             }
         ]
     },
