@@ -67,12 +67,15 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "npm install && npm run compile && npm prune --omit=dev",
+        "vscode:prepublish": "npm run rebuild && npm prune --omit=dev",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
         "pretest": "npm run compile && npm run lint",
         "lint": "eslint src",
-        "test": "vscode-test"
+        "test": "vscode-test",
+        "clean": "./clean.sh -y",
+        "libgit": "./libgit.sh -ciy",
+        "rebuild": "./clean.sh -iy && npm run compile"
     },
     "devDependencies": {
         "@types/node": "^22.x",
