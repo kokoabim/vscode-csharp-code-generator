@@ -1,10 +1,10 @@
 {
-    "name": "csharp-code-generator",
+    "name": "csharp-code-creator",
     "publisher": "spencerjames",
     "version": "0.0.1",
-    "description": "C# Code Generator",
-    "displayName": "C# Code Generator",
-    "shortName": "C# Code Generator",
+    "description": "Generate C# interfaces from classes and classes from interfaces.",
+    "displayName": "C# Code Creator",
+    "shortName": "C# Code Creator",
     "author": {
         "name": "Spencer James",
         "email": "apps@swsj.me",
@@ -30,14 +30,16 @@
         "c#",
         "code",
         "generator",
+        "creator",
         "csharp",
-        "generation"
+        "generation",
+        "creation"
     ],
     "activationEvents": [],
     "main": "./dist/extension.js",
     "contributes": {
         "configuration": {
-            "title": "C# Code Generator",
+            "title": "C# Code Creator",
             "properties": {
                 "csharp-code-generator.interfaceImplementations": {
                     "type": "object",
@@ -47,9 +49,8 @@
                     }
                 },
                 "csharp-code-generator.formatDocumentOnCodeGeneration": {
-                    "order": 4,
-                    "markdownDescription": "Perform the format document command after code generation.",
                     "type": "boolean",
+                    "markdownDescription": "Perform the format document command after code generation.",
                     "default": true
                 }
             }
