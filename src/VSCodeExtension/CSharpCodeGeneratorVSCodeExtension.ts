@@ -75,6 +75,10 @@ export class CSharpCodeGeneratorVSCodeExtension extends VSCodeExtension {
                 return;
             }
 
+            if (sourceSymbolType === CSharpSymbolType.class && targetSymbolType === CSharpSymbolType.interface) {
+                await CSharpCodeGenerator.addInterfaceToClassAsync(textEditor, sourceSymbol, targetSymbol.typeName);
+            }
+
             const targetSymbolText = (targetSymbolType === CSharpSymbolType.class ? sourceSymbol.eol : "")
                 + sourceSymbol.eol
                 + targetSymbol.toString()
@@ -94,9 +98,24 @@ export class CSharpCodeGeneratorVSCodeExtension extends VSCodeExtension {
 
             if (codeGeneratorSettings.formatDocumentOnCodeGeneration) await vscode.commands.executeCommand('editor.action.formatDocument', textDocument.uri);
 
+            // ! TODO: Implement this...
+            /*
+            const fileDiagnostics = FileDiagnostic.getFileDiagnostics(textDocument);
+            const hidesInheritedMemberEdits = fileDiagnostics.filter(d => d.identifier === FileDiagnosticIdentifier.hidesInheritedMember && insertedRange.contains(d.range))
+                .map(d => new vscode.TextEdit(d.range, ""));
+
+            await textEditor.edit(editBuilder => {
+                hidesInheritedMemberEdits.forEach(te =>
+                    editBuilder.replace(te.range, te.newText)
+                );
+            });
+            */
+
+            textEditor.revealRange(insertedRange, vscode.TextEditorRevealType.InCenter);
+
             textEditor.selection = new vscode.Selection(
                 insertedRange.start.line, insertedRange.start.character,
-                insertedRange.end.line, insertedRange.end.character);
+                insertedRange.end.line /*- hidesInheritedMemberEdits.length*/, insertedRange.end.character);
 
             await this.information(`${sourceSymbol.typeName} inserted on line ${insertedLineNumber + 1}`);
         });

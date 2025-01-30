@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import { CSharpKeywords } from "../CSharp/CSharpKeywords";
 import { CSharpParameter } from "../CSharp/CSharpParameter";
 import { CSharpSymbol } from "../CSharp/CSharpSymbol";
@@ -6,6 +7,38 @@ import { StringBuilder } from "../Utilities/StringBuilder";
 import { CSharpCodeGeneratorVSCodeExtensionSettings } from "../VSCodeExtension/CSharpCodeGeneratorVSCodeExtensionSettings";
 
 export class CSharpCodeGenerator {
+    static async addInterfaceToClassAsync(textEditor: vscode.TextEditor, symbol: CSharpSymbol, interfaceTypeName: string): Promise<void> {
+        if (symbol.implements.includes(interfaceTypeName)) return;
+
+        symbol.implements.push(interfaceTypeName);
+
+        const implementsText = ": " + symbol.implements.join(", ");
+
+        let implementsStartCharacter;
+        let implementsStartLine;
+
+        if (symbol.implementsRange === undefined && symbol.afterTypeNameOrPrimaryConstructorPosition !== undefined) {
+            await textEditor.edit(editBuilder => {
+                editBuilder.insert(symbol.afterTypeNameOrPrimaryConstructorPosition!, " " + implementsText);
+            });
+
+            implementsStartCharacter = symbol.afterTypeNameOrPrimaryConstructorPosition!.character + 1;
+            implementsStartLine = symbol.afterTypeNameOrPrimaryConstructorPosition!.line;
+        }
+        else {
+            await textEditor.edit(editBuilder => {
+                editBuilder.replace(symbol.implementsRange!, implementsText);
+            });
+
+            implementsStartCharacter = symbol.implementsRange!.start.character;
+            implementsStartLine = symbol.implementsRange!.start.line;
+        }
+
+        symbol.implementsRange = new vscode.Range(
+            implementsStartLine, implementsStartCharacter,
+            implementsStartLine, implementsStartCharacter + implementsText.length);
+    }
+
     static createClass(settings: CSharpCodeGeneratorVSCodeExtensionSettings, sourceSymbol: CSharpSymbol): CSharpSymbol {
         const targetSymbol = new CSharpSymbol();
         targetSymbol.accessModifier = sourceSymbol.accessModifier;
@@ -57,6 +90,8 @@ export class CSharpCodeGenerator {
         targetSymbol.typeName = `I${sourceSymbol.typeName}`;
         targetSymbol.xmlComment = sourceSymbol.xmlComment;
 
+        sourceSymbol.implements = sourceSymbol.implements.filter(i => !i.startsWith("I")); // interfaces are moved to interface being created
+
         sourceSymbol.members.sort((a, b) => a.name.localeCompare(b.name)).filter(m =>
             !m.isStaticMember && !m.isAbstractMember
             && CSharpCodeGenerator.isInterfaceMemberType(m)
@@ -95,11 +130,17 @@ export class CSharpCodeGenerator {
 
         if (symbol.canHaveParameters && symbol.parametersText) sb.append(symbol.parametersText);
 
-        if (symbol.symbolType === CSharpSymbolType.property || symbol.symbolType === CSharpSymbolType.indexer) {
+        if (symbol.symbolType === CSharpSymbolType.property) {
             sb.append(" {");
             sb.append(" get;");
             sb.append(` ${symbol.accessors.set === undefined ? "private " : ""}set;`);
             sb.append(" }");
+        }
+        else if (symbol.symbolType === CSharpSymbolType.indexer) {
+            sb.append(`${symbol.eol + settings.indentation}{`);
+            sb.append(`${symbol.eol + settings.indentation + settings.indentation}`).append("get => throw new NotImplementedException();");
+            sb.append(`${symbol.eol + settings.indentation + settings.indentation}`).append(`${symbol.accessors.set === undefined ? "private " : ""}set => throw new NotImplementedException();`);
+            sb.append(`${symbol.eol + settings.indentation}}`);
         }
 
         if (symbol.constraints.length > 0) sb.append(" where ").concat(" where ", ...symbol.constraints);
@@ -113,7 +154,7 @@ export class CSharpCodeGenerator {
         return sb.toString();
     }
 
-    private static createClassSymbolText(settings: CSharpCodeGeneratorVSCodeExtensionSettings, symbol: CSharpSymbol, interfaceImplements: string[]): string {
+    private static createClassSymbolText(settings: CSharpCodeGeneratorVSCodeExtensionSettings, symbol: CSharpSymbol, inheritedInterfaces: string[]): string {
         const sb = new StringBuilder();
 
         if (symbol.xmlComment) sb.append(symbol.xmlComment).append(symbol.eol);
@@ -133,10 +174,13 @@ export class CSharpCodeGenerator {
 
         const symbolTypes = [CSharpSymbolType.event, CSharpSymbolType.property, CSharpSymbolType.constructor, CSharpSymbolType.indexer, CSharpSymbolType.method];
 
-        symbolTypes.forEach((symbolType, symbolIndex) => {
+        let symbolIndex = 0;
+
+        symbolTypes.forEach(symbolType => {
             if (symbolType !== CSharpSymbolType.constructor) {
                 symbol.members.filter(m => m.symbolType === symbolType).forEach(member => {
                     if (symbolIndex > 0) sb.append(symbol.eol);
+                    symbolIndex++;
 
                     if (member.xmlComment) sb.append(`${symbol.eol}${settings.indentation}`).append(member.xmlComment.split(symbol.eol).join(`${symbol.eol}${settings.indentation}`));
 
@@ -145,6 +189,7 @@ export class CSharpCodeGenerator {
             }
             else { // constructor
                 if (symbolIndex > 0) sb.append(symbol.eol);
+                symbolIndex++;
 
                 sb.append(`${symbol.eol}${settings.indentation}${symbol.accessModifier} ${symbol.name}()`);
                 sb.append(`${symbol.eol}${settings.indentation}{`);
@@ -168,16 +213,34 @@ export class CSharpCodeGenerator {
             }
         });
 
-        if (interfaceImplements.length > 0 && Object.keys(settings.interfaceImplementations).length > 0) {
-            const interfaceTypeNamesImplemented = Object.keys(settings.interfaceImplementations).filter(i => interfaceImplements.includes(i));
+        if (inheritedInterfaces.length > 0 && Object.keys(settings.interfaceImplementations).length > 0) {
+            const definedAndInheritedInterfaces = (Object.keys(settings.interfaceImplementations).map(definedInterfaceTypeName => {
+                const definedInterfaceTypeNameSplit = definedInterfaceTypeName.split(";").map(ditn => ditn.trim());
 
-            interfaceTypeNamesImplemented.forEach(interfaceTypeName => {
-                const classImplementation = settings.interfaceImplementations[interfaceTypeName]
-                    .replaceAll("%className%", symbol.name)
-                    .replaceAll("%classTypeName%", symbol.typeName)
-                    .replaceAll("%interfaceName%", symbol.implements[0]) // 0 = will always be the interface generated from
-                    .replaceAll("%indent%", settings.indentation)
-                    .replaceAll(/\n/g, symbol.eol);
+                for (const inheritedInterface of inheritedInterfaces) {
+                    const m = inheritedInterface.match(`^${definedInterfaceTypeNameSplit[0]}$`);
+                    if (m) return [definedInterfaceTypeName, inheritedInterface, m.length === 2 ? m[1] : undefined];
+                }
+
+                return [undefined, undefined, undefined];
+            }) as [string | undefined, string | undefined, string | undefined][])
+                .filter(dii => dii[0] !== undefined);
+
+            definedAndInheritedInterfaces.forEach(dii => {
+                let interfaceTypeNames = [dii[0]];
+                if (interfaceTypeNames[0]!.includes(";")) interfaceTypeNames.push(...interfaceTypeNames[0]!.split(";").map(itn => itn.trim()).slice(1));
+
+                const classImplementation = interfaceTypeNames.map(itn => {
+                    const genericType = dii[2];
+
+                    return settings.interfaceImplementations[itn!]
+                        .replaceAll("%className%", symbol.name)
+                        .replaceAll("%classTypeName%", symbol.typeName)
+                        .replaceAll("%genericType%", genericType ?? "")
+                        .replaceAll("%interfaceName%", symbol.implements[0]) // 0 = will always be the interface generated from
+                        .replaceAll("%indent%", settings.indentation)
+                        .replaceAll(/\n/g, symbol.eol);
+                }).join(symbol.eol + symbol.eol);
 
                 sb.append(`${symbol.eol}${symbol.eol}${classImplementation}`);
             });
@@ -200,8 +263,8 @@ export class CSharpCodeGenerator {
 
         if (symbol.symbolType === CSharpSymbolType.property || symbol.symbolType === CSharpSymbolType.indexer) {
             sb.append(" {");
-            if (symbol.accessors.get !== undefined && (symbol.accessors.get === "" || CSharpKeywords.accessModifierIsEqualOrHigher(symbol.accessModifier, symbol.parent!.accessModifier))) sb.append(" get;");
-            if (symbol.accessors.set !== undefined && (symbol.accessors.set === "" || CSharpKeywords.accessModifierIsEqualOrHigher(symbol.accessModifier, symbol.parent!.accessModifier))) sb.append(" set;");
+            if (symbol.accessors.get !== undefined && (symbol.accessors.get === "" || CSharpKeywords.accessModifierIsEqualOrHigher(symbol.accessors.get, symbol.parent!.accessModifier))) sb.append(" get;");
+            if (symbol.accessors.set !== undefined && (symbol.accessors.set === "" || CSharpKeywords.accessModifierIsEqualOrHigher(symbol.accessors.set, symbol.parent!.accessModifier))) sb.append(" set;");
             sb.append(" }");
         }
 
