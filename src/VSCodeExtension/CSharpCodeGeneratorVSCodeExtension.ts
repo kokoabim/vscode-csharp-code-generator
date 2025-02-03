@@ -1,11 +1,13 @@
 import * as vscode from "vscode";
+
+import { CSharpFile } from "../CSharp/CSharpFile";
+import { CSharpSymbol } from "../CSharp/CSharpSymbol";
+import { CSharpSymbolType } from "../CSharp/CSharpSymbolType";
+import { CSharpCodeGenerator } from "../CodeGeneration/CSharpCodeGenerator";
+import { FileSystem } from "../Utilities/FileSystem";
+import { CSharpCodeGeneratorVSCodeExtensionSettings } from "./CSharpCodeGeneratorVSCodeExtensionSettings";
 import { VSCodeCommand } from "./VSCodeCommand";
 import { VSCodeExtension } from "./VSCodeExtension";
-import { CSharpFile } from "../CSharp/CSharpFile";
-import { CSharpSymbolType } from "../CSharp/CSharpSymbolType";
-import { CSharpSymbol } from "../CSharp/CSharpSymbol";
-import { CSharpCodeGenerator } from "../CodeGeneration/CSharpCodeGenerator";
-import { CSharpCodeGeneratorVSCodeExtensionSettings } from "./CSharpCodeGeneratorVSCodeExtensionSettings";
 
 export class CSharpCodeGeneratorVSCodeExtension extends VSCodeExtension {
     constructor(context: vscode.ExtensionContext) {
@@ -25,10 +27,10 @@ export class CSharpCodeGeneratorVSCodeExtension extends VSCodeExtension {
         return new Promise(async () => {
             if (!await this.isWorkspaceOpen()) return;
 
-            const textDocument = await this.getTextDocument();
+            let textDocument = await this.getTextDocument();
             if (!textDocument) return;
 
-            const textEditor = await this.getTextEditor();
+            let textEditor = await this.getTextEditor();
             if (!textEditor) return;
 
             const cSharpFile = await CSharpFile.parse(textDocument);
@@ -37,12 +39,16 @@ export class CSharpCodeGeneratorVSCodeExtension extends VSCodeExtension {
             const targetTypeName = targetSymbolType === CSharpSymbolType.class ? "class" : "interface";
 
             const sourceSymbols = cSharpFile.members.filter(a =>
+                // members by source symbol type
                 a.symbolType === sourceSymbolType
+                // member is instance (non-static)
                 && !a.isStaticMember
+                // target symbol does not exist (by name) in file
                 && cSharpFile.members.filter(b =>
                     b.symbolType === targetSymbolType
-                    && b.name === (targetSymbolType === CSharpSymbolType.interface ? `I${a.name}` : (a.name.startsWith("I") ? a.name.substring(1) : a.name))
-                ).length === 0);
+                    && b.name === (targetSymbolType === CSharpSymbolType.interface ? `I${a.name}` : (a.name.startsWith("I") ? a.name.substring(1) : a.name))).length === 0
+                // not a class that already implements an interface with the same target interface name
+                && (a.symbolType === CSharpSymbolType.class && !a.implements.includes("I" + a.name)));
 
             if (sourceSymbols.length === 0) {
                 await this.warning(`No ${sourceTypeName} found to create a${targetSymbolType === CSharpSymbolType.interface ? "n" : ""} ${targetTypeName} for`);
@@ -64,11 +70,45 @@ export class CSharpCodeGeneratorVSCodeExtension extends VSCodeExtension {
                 sourceSymbol = sourceSymbols.find(c => c.typeName === selectedSymbol)!;
             }
 
+            let targetSymbolNameOverride: string | undefined;
+
+            const targetFileName = `${targetSymbolType === CSharpSymbolType.interface ? "I" : ""}${sourceSymbol.name}.cs`;
+            const targetFiles = await FileSystem.workspaceFile(targetFileName);
+
+            if (targetFiles.length > 0) {
+                for await (const f of targetFiles) {
+                    const td = await vscode.workspace.openTextDocument(f);
+                    await vscode.window.showTextDocument(td);
+                }
+
+                const message = targetFiles.length === 1
+                    ? `File ${targetFileName} already exists.`
+                    : `${targetFiles.length} files named ${targetFileName} already exist.`;
+
+                const response = (await vscode.window.showInformationMessage(message, {
+                    detail: `Generate a new ${targetTypeName} with a different name?`
+                }, "Generate Anyway", "Enter Different Name", "Cancel"));
+
+                if (response === "Cancel") return;
+
+                textDocument = await vscode.workspace.openTextDocument(textDocument.uri);
+                textEditor = await vscode.window.showTextDocument(textDocument);
+
+                if (response === "Enter Different Name") {
+                    targetSymbolNameOverride = await vscode.window.showInputBox({
+                        prompt: `Enter a new ${targetTypeName} name for ${sourceTypeName} ${sourceSymbol.name}`,
+                        value: `${targetSymbolType === CSharpSymbolType.interface ? "I" : ""}${sourceSymbol.name}`
+                    });
+
+                    if (!targetSymbolNameOverride) return;
+                }
+            }
+
             const codeGeneratorSettings = CSharpCodeGeneratorVSCodeExtensionSettings.singleton(true);
 
             const targetSymbol = targetSymbolType === CSharpSymbolType.interface
-                ? CSharpCodeGenerator.createInterface(codeGeneratorSettings, sourceSymbol)
-                : CSharpCodeGenerator.createClass(codeGeneratorSettings, sourceSymbol);
+                ? CSharpCodeGenerator.createInterface(codeGeneratorSettings, sourceSymbol, targetSymbolNameOverride)
+                : CSharpCodeGenerator.createClass(codeGeneratorSettings, sourceSymbol, targetSymbolNameOverride);
 
             if (targetSymbol.members.length === 0) {
                 await this.warning(`No members found in ${sourceSymbol.typeName} to create a${targetSymbolType === CSharpSymbolType.interface ? "n" : ""} ${targetTypeName} for`);

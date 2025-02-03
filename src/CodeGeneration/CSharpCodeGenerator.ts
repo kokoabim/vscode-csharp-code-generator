@@ -39,18 +39,25 @@ export class CSharpCodeGenerator {
             implementsStartLine, implementsStartCharacter + implementsText.length);
     }
 
-    static createClass(settings: CSharpCodeGeneratorVSCodeExtensionSettings, sourceSymbol: CSharpSymbol): CSharpSymbol {
+    static createClass(settings: CSharpCodeGeneratorVSCodeExtensionSettings, sourceSymbol: CSharpSymbol, nameOverride?: string): CSharpSymbol {
+        let typeName = sourceSymbol.typeName.startsWith("I") ? sourceSymbol.typeName.substring(1) : sourceSymbol.typeName;
+        if (nameOverride !== undefined) {
+            const genericIndex = typeName.indexOf("<");
+            if (genericIndex === -1) typeName = nameOverride;
+            else typeName = `${nameOverride}${sourceSymbol.typeName.substring(genericIndex)}`;
+        }
+
         const targetSymbol = new CSharpSymbol();
         targetSymbol.accessModifier = sourceSymbol.accessModifier;
         targetSymbol.constraints = sourceSymbol.constraints;
         targetSymbol.eol = sourceSymbol.eol;
         targetSymbol.implements = [sourceSymbol.typeName];
-        targetSymbol.name = sourceSymbol.name.startsWith("I") ? sourceSymbol.name.substring(1) : sourceSymbol.name;
+        targetSymbol.name = nameOverride ?? sourceSymbol.name.startsWith("I") ? sourceSymbol.name.substring(1) : sourceSymbol.name;
         targetSymbol.namespace = sourceSymbol.namespace;
         targetSymbol.parent = sourceSymbol.parent;
         targetSymbol.returnType = "class";
         targetSymbol.symbolType = CSharpSymbolType.class;
-        targetSymbol.typeName = sourceSymbol.typeName.startsWith("I") ? sourceSymbol.typeName.substring(1) : sourceSymbol.typeName;
+        targetSymbol.typeName = typeName;
         targetSymbol.xmlComment = sourceSymbol.xmlComment;
 
         sourceSymbol.members.sort((a, b) => a.name.localeCompare(b.name)).forEach(sourceMember => {
@@ -76,18 +83,28 @@ export class CSharpCodeGenerator {
         return targetSymbol;
     }
 
-    static createInterface(settings: CSharpCodeGeneratorVSCodeExtensionSettings, sourceSymbol: CSharpSymbol): CSharpSymbol {
+    static createInterface(settings: CSharpCodeGeneratorVSCodeExtensionSettings, sourceSymbol: CSharpSymbol, nameOverride?: string): CSharpSymbol {
+        let typeName;
+        if (nameOverride === undefined) {
+            typeName = `I${sourceSymbol.typeName}`;
+        }
+        else {
+            const genericIndex = sourceSymbol.typeName.indexOf("<");
+            if (genericIndex === -1) typeName = nameOverride;
+            else typeName = `${nameOverride}${sourceSymbol.typeName.substring(genericIndex)}`;
+        }
+
         const targetSymbol = new CSharpSymbol();
         targetSymbol.accessModifier = sourceSymbol.accessModifier; // though set, this isn't used in the interface
         targetSymbol.constraints = sourceSymbol.constraints;
         targetSymbol.eol = sourceSymbol.eol;
         targetSymbol.implements = sourceSymbol.implements.filter(i => i.startsWith("I"));
-        targetSymbol.name = `I${sourceSymbol.name}`;
+        targetSymbol.name = nameOverride ?? `I${sourceSymbol.name}`;
         targetSymbol.namespace = sourceSymbol.namespace;
         targetSymbol.parent = sourceSymbol.parent;
         targetSymbol.returnType = "interface";
         targetSymbol.symbolType = CSharpSymbolType.interface;
-        targetSymbol.typeName = `I${sourceSymbol.typeName}`;
+        targetSymbol.typeName = typeName;
         targetSymbol.xmlComment = sourceSymbol.xmlComment;
 
         sourceSymbol.implements = sourceSymbol.implements.filter(i => !i.startsWith("I")); // interfaces are moved to interface being created

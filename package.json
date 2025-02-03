@@ -1,7 +1,7 @@
 {
     "name": "csharp-code-creator",
     "publisher": "spencerjames",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "Generate C# interfaces from classes and classes from interfaces.",
     "displayName": "C# Code Creator",
     "shortName": "C# Code Creator",
@@ -73,16 +73,16 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "npm run rebuild && npm prune --omit=dev",
-        "compile": "npm run libclone && tsc -p ./",
-        "watch": "npm run libclone && tsc -watch -p ./",
-        "pretest": "npm run compile && npm run lint",
-        "lint": "eslint src",
-        "test": "vscode-test",
         "clean": "./clean.sh -y",
+        "compile": "npm run libclone && tsc -p ./",
         "libclean": "./libgit.sh -ciy",
         "libclone": "./libgit.sh -gy",
-        "rebuild": "./clean.sh -iy && npm run compile"
+        "lint": "eslint src",
+        "pretest": "npm install && npm run compile && npm run lint",
+        "rebuild": "./clean.sh -iy && npm run compile",
+        "test": "vscode-test",
+        "vscode:prepublish": "npm run rebuild && npm prune --omit=dev",
+        "watch": "npm run libclone && tsc -watch -p ./"
     },
     "devDependencies": {
         "@types/node": "^22.x",
